@@ -414,9 +414,6 @@ void loop(void)
         posliTEXT("home.t5.txt=", "Prebieha zapis na kartu");
         dataFile.println("ciarovy_kod,vzdialenost,priemer");
         String data_column;
-        if (!ciarovy_kod.isEmpty()) {
-          ciarovy_kod = ciarovy_kod.substring(0, ciarovy_kod.length()-2);
-        }
         data_column = ciarovy_kod;
         for (int i = 0; i < optoBuffer.numElems; ++i) {
           data_column += ",";
@@ -443,17 +440,13 @@ void loop(void)
   //---------------------------------------------------------------------------
   // vycitanie ciarovych kodov
   if (swSer1.available()) {
-    char s = ' '; digitalWrite(LED, true);
-    String val = "";
-    while  (swSer1.available() > 0) {
-      s = swSer1.read();
-      val += char(s);
-      delay(3);
-    }
-    ciarovy_kod = val;
+    digitalWrite(LED, true);
+    String val = swSer1.readStringUntil('\n');
+    ciarovy_kod = val.substring(0, val.length()-1);
     digitalWrite(LED, false);
-    posliTEXT("home.t5.txt=", "Ciarovy kod precitany " + String(ciarovy_kod.length()));
+    posliTEXT("home.t5.txt=", "Ciarovy kod precitany");
   }
+
 
   //---------------------------------------------------------------------------
   // senzor vzdialenosti
