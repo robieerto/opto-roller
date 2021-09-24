@@ -106,7 +106,7 @@ DistBuffer<double> memoryBuffer(MEMORY_BUFFER_SIZE);
 // vzdialenost z optickeho snimaca
 double optical_sensor;
 // vzdialenost valca
-int32_t dist_sensor;
+double dist_sensor;
 // vzdialenost valca v impulzoch
 int32_t dist_imp_sensor;
 // spustenie merania
@@ -272,6 +272,7 @@ void setup(void)
 
   delay(100);
   digitalWrite(LED, HIGH); digitalWrite(LED_G, HIGH);
+  // opticky snimal
   hwSerial_1.begin(921600, SERIAL_8N1, RX1, TX1); // RS422
   digitalWrite(LED, LOW); digitalWrite(LED_G, LOW);
   delay(100);
@@ -301,7 +302,6 @@ void setup(void)
   Serial.begin(115200, SERIAL_8N1); // RS422
   delay(100);
   
-
   delay(500); // oneskorenie aby presiel zapis na terminal
   // zapis hodnot na terminal
   posliTEXT("nastav.t0.txt=", String(KALIB_PRIEMER, 2));
@@ -316,23 +316,14 @@ void setup(void)
 void loop(void)
 {
   // posielanie udajov
-  if (cas_print > 35 ) {
-    posliTEXT("home.t40.txt=", String(optical_sensor, 4));   //vzdialenost
+  if (cas_print > 10) {
+    cas_print = 0;
+    posliTEXT("home.t40.txt=", String(optical_sensor, 3));   //vzdialenost
     posliTEXT("home.t13.txt=", ciarovy_kod);
-    posliTEXT("home.t1.txt=", String(priemer, 4));
-    posliTEXT("home.t2.txt=", String(dist_sensor));
+    posliTEXT("home.t1.txt=", String(priemer, 3));
+    posliTEXT("home.t2.txt=", String(dist_sensor, 2));
     posliTEXT("kontrola1.t1.txt=", String(opto_count));
     posliTEXT("kontrola1.t2.txt=", String(dist_count));
-    cas_print = 0;
-  }
-
-  if (cas_print2 > 50 ) {
-    posliTEXT("home.t25.txt=", String(den)); // posli den
-    posliTEXT("home.t26.txt=", String(mes)); // posli mesiac
-    posliTEXT("home.t27.txt=", String(hod)); // posli hodiny
-    posliTEXT("home.t28.txt=", String(minuty)); // posli minuty
-    posliTEXT("home.t29.txt=", String(sec)); // posli sekundy
-    cas_print2 = 0;
   }
 
   /* casovace */
@@ -451,35 +442,16 @@ void loop(void)
   //---------------------------------------------------------------------------
   // senzor vzdialenosti
   if (Serial.available()) {
-    char s = ' ';
-    String val = "";
-    delay(3);
-    while (Serial.available() > 0) {
-      s = Serial.read();
-      val += char(s);
-    }
+    String val = Serial.readStringUntil('\n');
     dist_imp_sensor = val.toInt();
     posliTEXT("servis.t3.txt=", String(dist_imp_sensor));
     if (SAMPLES_PER_MM > 0) {
       dist_sensor = (dist_imp_sensor - zero_imp_distance) / SAMPLES_PER_MM;
     }
     dist_count++;
+    posliTEXT("home.t5.txt=", "Ciarovy kod precitany");
   }
 
-  // byte_count = Serial.available();
-  // if (byte_count == 4) {
-  //   byte buff[4];
-  //   int i = 0;
-  //   for (int i = 0; i < 4; ++i) {
-  //     buff[i++] = Serial.read();
-  //   }
-  //   dist_sensor = (uint32_t)(buff[0]<<24) + (uint32_t)(buff[1]<<16) + (uint32_t)(buff[2]<<8) + (uint32_t)buff[3];
-  // }
-  // else if (byte_count > 4) {
-  //   for (int i = 0; i < byte_count; ++i) {
-  //     Serial.read();
-  //   }
-  // }
 
   /*************************************************************************/
   // opticky senzor vysky
@@ -543,19 +515,8 @@ void loop(void)
       }
       // relativna vzdialenost od posledne nameranej hodnoty
       relative_dist = dist_sensor - saved_dist;
-      // // prah vzdialenosti pre detekciu
-      // if (optical_sensor <= DIST_TRESHOLD) {
-      //   if (relative_dist >= (MEASURE_STEP - (LENGTH_SCOPE / 2))) {
-      //     memoryBuffer.addValue(priemer);
-      //   }
-      //   if (relative_dist >= (MEASURE_STEP + (LENGTH_SCOPE / 2))) {
-      //     double avg = memoryBuffer.getAverage();
-      //     memoryBuffer.clear();
-      //     optoBuffer.addValue(avg);
-      //     distBuffer.addValue(saved_dist + MEASURE_STEP);
-      //     saved_dist += MEASURE_STEP;
-      //   }
-      // }
+
+      // prah vzdialenosti pre detekciu
       if (optical_sensor <= DIST_TRESHOLD) {
         // pridaj odmerany priemer
         if (relative_dist >= MEASURE_STEP) {
