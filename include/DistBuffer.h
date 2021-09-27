@@ -24,6 +24,7 @@ template <class Any_Type> DistBuffer<Any_Type>::DistBuffer(const size_t &buff_si
 {
     size = buff_size;
     values = new Any_Type[size]();
+    numElems = 0;
     index = 0;
     sum = 0;
     isFull = false;
@@ -37,6 +38,7 @@ template <class Any_Type> void DistBuffer<Any_Type>::addValue(const Any_Type &va
         sum += value;
         if (numElems == size) {
             isFull = true;
+            index = 0;
         }
     }
 }

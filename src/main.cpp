@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include <EthernetENC.h>
 #include "params.h"
 #include "DistBuffer.h"
 #include "esp_system.h"
@@ -12,6 +13,8 @@
 #define CS    5
 
 #define RX_BARCODE 22
+
+#define ETH_ADAPTER 27
 
 #define EEPROM_SIZE 164
 
@@ -38,6 +41,37 @@ File dataFile;  // initialize sd file
 int prev_file_indx = 0 ;  // used for file naming
 String fileName = "000" ;
 char file[10];
+
+/* Ethernet */
+// Enter a MAC address for your controller below.
+// Newer Ethernet shields have a MAC address printed on a sticker on the shield
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+
+// if you don't want to use DNS (and reduce your sketch size)
+// use the numeric IP instead of the name for the server:
+//IPAddress server(74,125,232,128);  // numeric IP for Google (no DNS)
+char server[] = "192.168.1.2";    // name address for Google (using DNS)
+
+// Set the static IP address to use if the DHCP fails to assign
+IPAddress ip(192, 168, 1, 3);
+IPAddress myDns(192, 168, 1, 1);
+
+// Initialize the Ethernet client library
+// with the IP address and port of the server
+// that you want to connect to (port 80 is default for HTTP):
+EthernetClient client;
+
+
+// Variables to measure the speed
+unsigned long beginMicros, endMicros;
+unsigned long byteCount = 0;
+bool printWebData = true;  // set to false for better speed measurement
+
+const int data_size = 1000;
+String string_data = "";
+double number;
+double numbers[data_size];
+bool connected;
 
 uint16_t citac;
 uint32_t timerDsec;
@@ -96,6 +130,8 @@ bool zapisEEPROM;
 
 bool zapisSD;
 bool initSD;
+
+bool zapisEthernet;
 
 // buffre
 DistBuffer<double> optoBuffer(ROLLER_BUFFER_SIZE);
@@ -276,8 +312,10 @@ void setup(void)
   hwSerial_1.begin(921600, SERIAL_8N1, RX1, TX1); // RS422
   digitalWrite(LED, LOW); digitalWrite(LED_G, LOW);
   delay(100);
-
   digitalWrite(LED, HIGH);
+  // start the Ethernet connection
+  Ethernet.init(ETH_ADAPTER);
+  Ethernet.begin(mac, ip, myDns);
   delay(100);
   // EEPROM
   if (!EEPROM.begin(EEPROM_SIZE)) {
@@ -417,8 +455,6 @@ void loop(void)
         dataFile.close();
         posliTEXT("home.t5.txt=", "Zapis na kartu OK");
         posliTEXT("servis.t1.txt=", String(optoBuffer.numElems));
-        optoBuffer.clear();
-        distBuffer.clear();
       }
       else {
         posliTEXT("home.t5.txt=", "Zapis na kartu ERROR");
@@ -426,6 +462,67 @@ void loop(void)
       SD.end();
     }
   }
+
+
+  //---------------------------------------------------------------------------
+  // Ethernet
+  if (zapisEthernet) {
+    zapisEthernet = false;
+    // if you get a connection, report back via serial:
+    if (client.connect(server, 8080)) {
+        connected = true;
+        String data_column = "ciarovy_kod,vzdialenost,priemer\n";
+        data_column += ciarovy_kod;
+        for (int i = 0; i < optoBuffer.numElems; ++i) {
+          data_column += ",";
+          data_column += String(distBuffer.values[i], 2);
+          data_column += ",";
+          data_column += String(optoBuffer.values[i], 4);
+          data_column += '\n';
+        }
+        posliTEXT("home.t5.txt=", "connected to " + client.remoteIP().toString());
+        // Make a HTTP request:
+        client.println("POST /data HTTP/1.1");
+        client.println("Host: 192.168.1.2");
+        client.println("User-Agent: Arduino/1.0");
+        client.println("Content-Type: application/x-www-form-urlencoded;");
+        client.print("Content-Length: ");
+        client.println(data_column.length());
+        client.println("Connection: close");
+        client.println();
+        client.println(data_column);
+        // client.print(numbers[0]);
+        //   client.print("," + String(numbers[i]));
+        // }
+        // client.write((const char *)numbers, sizeof(double)*10000);
+      } else {
+        // if you didn't get a connection to the server:
+        posliTEXT("home.t5.txt=", "connection failed");
+        client.stop();
+      }
+    beginMicros = micros();
+  }
+
+  // if there are incoming bytes available
+  // from the server, read them and print them:
+  int len = client.available();
+  if (len > 0) {
+    byte buffer[80];
+    if (len > 80) len = 80;
+    client.read(buffer, len);
+    if (printWebData) {
+      Serial.write(buffer, len); // show in the serial monitor (slows some boards)
+    }
+    byteCount = byteCount + len;
+  }
+
+  // if the server's disconnected, stop the client:
+  if (!client.connected() && connected) {
+    connected = false;
+    endMicros = micros();
+    client.stop();
+  }
+
 
 
   //---------------------------------------------------------------------------
@@ -449,7 +546,6 @@ void loop(void)
       dist_sensor = (dist_imp_sensor - zero_imp_distance) / SAMPLES_PER_MM;
     }
     dist_count++;
-    posliTEXT("home.t5.txt=", "Ciarovy kod precitany");
   }
 
 
@@ -511,6 +607,8 @@ void loop(void)
         is_measuring = true;
         opto_count = 0;
         dist_count = 0;
+        optoBuffer.clear();
+        distBuffer.clear();
         memoryBuffer.clear();
       }
       // relativna vzdialenost od posledne nameranej hodnoty
@@ -543,6 +641,7 @@ void loop(void)
       start_measure = false;
       is_measuring = false;
       zapisSD = true;
+      zapisEthernet = true;
       posliTEXT("home.t5.txt=", "Meranie ukoncene");
     }
   }
