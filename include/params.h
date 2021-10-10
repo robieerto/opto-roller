@@ -4,7 +4,7 @@
 /* konstanty */
 
 // maximalny pocet vzorkov pre vyrobok
-const int ROLLER_BUFFER_SIZE = 4000;
+const int ROLLER_BUFFER_SIZE = 2000;
 // velkost buffra na priemerovanie
 const int MEMORY_BUFFER_SIZE = 1000;
 

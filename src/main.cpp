@@ -12,9 +12,10 @@
 #define MOSI  23
 #define CS    5
 
-#define RX_BARCODE 22
+#define RX_BARCODE 32
+#define TX_BARCODE 27
 
-#define ETH_ADAPTER 27
+#define ETH_CS 2
 
 #define EEPROM_SIZE 164
 
@@ -24,9 +25,14 @@
 #define TX2 25
 
 #define LED 33
-#define LED_R 18
-#define LED_G 4
-#define LED_B 13
+
+// 21, 22 - IIC
+
+#define START_BUTTON 35
+#define STOP_BUTTON 34
+
+#define LED_START 15
+#define LED_STOP 4
 
 // pocet datovych bajtov zo senzora
 #define NUM_BYTES 3
@@ -194,6 +200,20 @@ String surfaceToStr(Surface surface)
   }
 }
 
+String getDateStr() {
+  String date = "";
+  date += den; // den
+  date += "_";
+  date += mes; // mesiac
+  date += "-";
+  date += hod; // hodiny
+  date += "_";
+  date += minuty; // minuty
+  date += "_";
+  date += sec; // sekundy
+  return date;
+}
+
 
 // priradenie hodnoty k prijatemu textu z terminalu
 void parseValues(char val) {
@@ -310,40 +330,44 @@ int connectServer() {
 //---------------------------------------------------------------------------
 void setup(void)
 {
-  pinMode(LED, OUTPUT); pinMode(LED_R, OUTPUT); pinMode(LED_G, OUTPUT); pinMode(LED_B, OUTPUT);
-  digitalWrite(LED, HIGH); digitalWrite(LED_R, HIGH);
+  pinMode(START_BUTTON, INPUT);
+  pinMode(STOP_BUTTON, INPUT);
+  pinMode(LED_START, OUTPUT);
+  pinMode(LED_STOP, OUTPUT);
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, HIGH);
   delay(100);
-  digitalWrite(LED, LOW); digitalWrite(LED_R, LOW);
+  digitalWrite(LED, LOW);
   delay(100);
   // terminal
   hwSerial_2.begin (250000, SERIAL_8N1, RX2, TX2);
   // software serial - citacka kodov
-  swSer1.begin(38400, SWSERIAL_8N1, RX_BARCODE, RX_BARCODE, false, 256);
+  swSer1.begin(38400, SWSERIAL_8N1, RX_BARCODE, TX_BARCODE, false, 256);
   // high speed half duplex, turn off interrupts during tx
   swSer1.enableIntTx(false);
-
-  delay(100);
-  digitalWrite(LED, HIGH); digitalWrite(LED_G, HIGH);
-  // opticky snimal
-  hwSerial_1.begin(921600, SERIAL_8N1, RX1, TX1); // RS422
-  digitalWrite(LED, LOW); digitalWrite(LED_G, LOW);
-  delay(100);
   digitalWrite(LED, HIGH);
+  delay(100);
+  // opticky snimac
+  hwSerial_1.begin(921600, SERIAL_8N1, RX1, TX1); // RS422
+  digitalWrite(LED, LOW);
+  delay(100);
   // start the Ethernet connection
-  Ethernet.init(ETH_ADAPTER);
+  Ethernet.init(ETH_CS);
   Ethernet.begin(mac, ip, myDns);
-
+  digitalWrite(LED, HIGH);
   delay(100);
   // EEPROM
   if (!EEPROM.begin(EEPROM_SIZE)) {
     delay(50);
   }
+  digitalWrite(LED, LOW);
   delay(100);
   // citanie z EEPROM
   for (int i = 0 ; i <= 12 ; i++) { // data v eeprom od serial_read[0]
     EEPROM.get(i * 8, serial_read[i]); // zlozenie bytov double
     pamat_serial_read[i] = serial_read[i];
   }
+  digitalWrite(LED, HIGH);
 
   delay(100);
   KALIB_PRIEMER = serial_read[0];
@@ -355,7 +379,9 @@ void setup(void)
   delay(1000);
   // senzor vzdialenosti
   Serial.begin(115200, SERIAL_8N1); // RS422
+  digitalWrite(LED, LOW);
   delay(100);
+  digitalWrite(LED, HIGH);
   
   delay(500); // oneskorenie aby presiel zapis na terminal
   // zapis hodnot na terminal
@@ -439,17 +465,8 @@ void loop(void)
       posliTEXT("home.t5.txt=", "Karta nie je vlozena");
     }
     else {
+      String date = getDateStr();
       posliTEXT("home.t5.txt=", "Inicializacia karty OK");
-      String date = "";
-      date += den; // den
-      date += "_";
-      date += mes; // mesiac
-      date += "-";
-      date += hod; // hodiny
-      date += "_";
-      date += minuty; // minuty
-      date += "_";
-      date += sec; // sekundy
       dataFile = SD.open("/" + date + ".csv" , FILE_WRITE);
       if (dataFile) {
         posliTEXT("home.t5.txt=", "Prebieha zapis na kartu");
@@ -464,9 +481,11 @@ void loop(void)
           dataFile.println(data_column);
           data_column = "";
         }
+        if (!ciarovy_kod.isEmpty() && optoBuffer.numElems == 0) {
+          dataFile.println(data_column);
+        }
         dataFile.close();
         posliTEXT("home.t5.txt=", "Zapis na kartu OK");
-        posliTEXT("servis.t1.txt=", String(optoBuffer.numElems));
       }
       else {
         posliTEXT("home.t5.txt=", "Zapis na kartu ERROR");
@@ -478,25 +497,28 @@ void loop(void)
 
   //---------------------------------------------------------------------------
   // Ethernet
-  if (test_timer) {
+  if (zapisEthernet) {
     test_timer = 0;
     zapisEthernet = false;
 
     // Ethernet.maintain();
     connected = connectServer();
-    server.
 
     if (client.connected()) {
-      // String data_column = "ciarovy_kod,vzdialenost,priemer\n";
-      // data_column += ciarovy_kod;
-      // for (int i = 0; i < optoBuffer.numElems; ++i) {
-      //   data_column += ",";
-      //   data_column += String(distBuffer.values[i], 2);
-      //   data_column += ",";
-      //   data_column += String(optoBuffer.values[i], 4);
-      //   data_column += '\n';
-      // }
-      String data_column = String(optical_sensor);
+      // String data_column = String(optical_sensor);
+      String data_column = "ciarovy_kod,vzdialenost,priemer\n";
+      data_column += ciarovy_kod;
+      for (int i = 0; i < optoBuffer.numElems; ++i) {
+        data_column += ",";
+        data_column += String(distBuffer.values[i], 2);
+        data_column += ",";
+        data_column += String(optoBuffer.values[i], 4);
+        data_column += '\n';
+      }
+      if (!ciarovy_kod.isEmpty() && optoBuffer.numElems == 0) {
+        data_column += '\n';
+      }
+      data_column += getDateStr();
       // Make a HTTP request:
       client.println("POST /data HTTP/1.1");
       client.println("Host: 192.168.1.2");
@@ -513,12 +535,13 @@ void loop(void)
         delay(1000);
       }
     }
+    digitalWrite(LED_STOP, LOW);
   }
 
-  // // check if ethernet is inplugged
-  // if (Ethernet.linkStatus() == LinkOFF) {
-  //   eth_connected = false;
-  // }
+  // check if ethernet is inplugged
+  if (Ethernet.linkStatus() == LinkOFF) {
+    eth_connected = false;
+  }
 
   // if there are incoming bytes available
   // from the server, read them and print them:
@@ -532,24 +555,11 @@ void loop(void)
   //---------------------------------------------------------------------------
   // vycitanie ciarovych kodov
   if (swSer1.available()) {
-    digitalWrite(LED, true);
+    digitalWrite(LED, LOW);
     String val = swSer1.readStringUntil('\n');
     ciarovy_kod = val.substring(0, val.length()-1);
-    digitalWrite(LED, false);
+    digitalWrite(LED, HIGH);
     posliTEXT("home.t5.txt=", "Ciarovy kod precitany");
-  }
-
-
-  //---------------------------------------------------------------------------
-  // senzor vzdialenosti
-  if (Serial.available()) {
-    String val = Serial.readStringUntil('\n');
-    dist_imp_sensor = val.toInt();
-    posliTEXT("servis.t3.txt=", String(dist_imp_sensor));
-    if (SAMPLES_PER_MM > 0) {
-      dist_sensor = (dist_imp_sensor - zero_imp_distance) / SAMPLES_PER_MM;
-    }
-    dist_count++;
   }
 
 
@@ -599,54 +609,77 @@ void loop(void)
 
     // prepocitany priemer valca
     priemer = KALIB_PRIEMER + 2*(KALIB_OPTO - optical_sensor);
+  }
 
-    // zaciatok merania
-    /*************************************************************************/
-    // zaciname stlacenim tlacitka
-    if (start_measure) {
-      posliTEXT("home.t5.txt=", "Prebieha meranie");
-      // pri spusteni merania
-      if (is_measuring == false) {
-        saved_dist = dist_sensor;
-        is_measuring = true;
-        opto_count = 0;
-        dist_count = 0;
-        optoBuffer.clear();
-        distBuffer.clear();
+
+  // tlacitka a ledky
+  /*************************************************************************/
+  if (digitalRead(START_BUTTON) == LOW) {
+    start_measure = true;
+    digitalWrite(LED_STOP, LOW);
+    digitalWrite(LED_START, HIGH);
+  }
+  if (start_measure && digitalRead(STOP_BUTTON) == LOW) {
+    end_measure = true;
+    digitalWrite(LED_START, LOW);
+    digitalWrite(LED_STOP, HIGH);
+  }
+
+
+  // zaciatok merania
+  /*************************************************************************/
+  // zaciname stlacenim tlacitka
+  if (start_measure) {
+    posliTEXT("home.t5.txt=", "Prebieha meranie");
+    // pri spusteni merania
+    if (is_measuring == false) {
+      saved_dist = dist_sensor;
+      is_measuring = true;
+      opto_count = 0;
+      dist_count = 0;
+      optoBuffer.clear();
+      distBuffer.clear();
+      memoryBuffer.clear();
+    }
+    // relativna vzdialenost od posledne nameranej hodnoty
+    relative_dist = dist_sensor - saved_dist;
+
+    // prah vzdialenosti pre detekciu
+    if (optical_sensor <= DIST_TRESHOLD) {
+      // pridaj odmerany priemer
+      if (relative_dist >= MEASURE_STEP) {
+        memoryBuffer.addValue(priemer);
+        opto_measure_count++;
+      }
+      // vyhodnot buffre
+      if (opto_measure_count >= LENGTH_SCOPE
+          || relative_dist >= MEASURE_STEP*2) {
+        opto_measure_count = 0;
+        double avg = memoryBuffer.getAverage();
+        measures_per_sample = memoryBuffer.numElems;
         memoryBuffer.clear();
-      }
-      // relativna vzdialenost od posledne nameranej hodnoty
-      relative_dist = dist_sensor - saved_dist;
-
-      // prah vzdialenosti pre detekciu
-      if (optical_sensor <= DIST_TRESHOLD) {
-        // pridaj odmerany priemer
-        if (relative_dist >= MEASURE_STEP) {
-          memoryBuffer.addValue(priemer);
-          opto_measure_count++;
-        }
-        // vyhodnot buffre
-        if (opto_measure_count >= LENGTH_SCOPE
-            || relative_dist >= MEASURE_STEP*2) {
-          opto_measure_count = 0;
-          double avg = memoryBuffer.getAverage();
-          measures_per_sample = memoryBuffer.numElems;
-          memoryBuffer.clear();
-          optoBuffer.addValue(avg);
-          distBuffer.addValue(saved_dist + MEASURE_STEP);
-          saved_dist += MEASURE_STEP;
-          relative_dist = dist_sensor - saved_dist;
-        }
+        optoBuffer.addValue(avg);
+        distBuffer.addValue(saved_dist + MEASURE_STEP);
+        saved_dist += MEASURE_STEP;
+        relative_dist = dist_sensor - saved_dist;
       }
     }
-    // koncime stlacenim tlacitka
-    if (end_measure) {
-      end_measure = false;
-      start_measure = false;
-      is_measuring = false;
-      zapisSD = true;
-      zapisEthernet = true;
-      posliTEXT("home.t5.txt=", "Meranie ukoncene");
-    }
+  }
+  // koncime stlacenim tlacitka
+  if (end_measure) {
+    /* len na testovanie */
+    // double dist = 0, opto = 0;
+    // for (int i = 0; i < ROLLER_BUFFER_SIZE; ++i) {
+    //   optoBuffer.addValue(opto);
+    //   distBuffer.addValue(dist);
+    //   opto += 0.01;
+    //   dist += 0.1;
+    // }
+    end_measure = false;
+    start_measure = false;
+    is_measuring = false;
+    zapisSD = true;
+    zapisEthernet = true;
+    posliTEXT("home.t5.txt=", "Meranie ukoncene");
   }
 }
