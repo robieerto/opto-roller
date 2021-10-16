@@ -144,6 +144,10 @@ DistBuffer<double> optoBuffer(ROLLER_BUFFER_SIZE);
 DistBuffer<double> distBuffer(ROLLER_BUFFER_SIZE);
 DistBuffer<double> memoryBuffer(MEMORY_BUFFER_SIZE);
 
+const int showBufferSize = 10;
+// DistBuffer<double> optoShow(showBufferSize);
+// DistBuffer<double> distShow(showBufferSize);
+
 
 // vzdialenost z optickeho snimaca
 double optical_sensor;
@@ -510,7 +514,7 @@ void loop(void)
       data_column += ciarovy_kod;
       for (int i = 0; i < optoBuffer.numElems; ++i) {
         data_column += ",";
-        data_column += String(distBuffer.values[i], 2);
+        data_column += String(distBuffer.values[i], 0);
         data_column += ",";
         data_column += String(optoBuffer.values[i], 4);
         data_column += '\n';
@@ -560,6 +564,18 @@ void loop(void)
     ciarovy_kod = val.substring(0, val.length()-1);
     digitalWrite(LED, HIGH);
     posliTEXT("home.t5.txt=", "Ciarovy kod precitany");
+  }
+
+  //---------------------------------------------------------------------------
+  // senzor vzdialenosti
+  if (Serial.available()) {
+    String val = Serial.readStringUntil('\n');
+    dist_imp_sensor = val.toInt();
+    posliTEXT("servis.t3.txt=", String(dist_imp_sensor));
+    if (SAMPLES_PER_MM > 0) {
+      dist_sensor = (dist_imp_sensor - zero_imp_distance) / SAMPLES_PER_MM;
+    }
+    dist_count++;
   }
 
 
@@ -665,6 +681,7 @@ void loop(void)
       }
     }
   }
+
   // koncime stlacenim tlacitka
   if (end_measure) {
     /* len na testovanie */
@@ -680,6 +697,17 @@ void loop(void)
     is_measuring = false;
     zapisSD = true;
     zapisEthernet = true;
+
+    int showStep = optoBuffer.numElems / showBufferSize;
+    int actStep = 0, distTerminalId = 50, optoTerminalId = 60;
+    for (int i = 0; i < showBufferSize; ++i) {
+      // distShow.addValue(distBuffer.values[actStep]);
+      // optoShow.addValue(optoBuffer.values[actStep]);
+      posliTEXT("home.t"+String(distTerminalId)+".txt=", String(distBuffer.values[actStep], 0));
+      posliTEXT("home.t"+String(optoTerminalId)+".txt=", String(optoBuffer.values[actStep], 4));
+      distTerminalId++; optoTerminalId++;
+      actStep += showStep;
+    }
     posliTEXT("home.t5.txt=", "Meranie ukoncene");
   }
 }
