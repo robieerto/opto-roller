@@ -569,7 +569,13 @@ void loop(void)
   //---------------------------------------------------------------------------
   // senzor vzdialenosti
   if (Serial.available()) {
-    String val = Serial.readStringUntil('\n');
+    char s = ' ';
+    String val = "";
+    delay(3);
+    while (Serial.available() > 0) {
+      s = Serial.read();
+      val += char(s);
+    }
     dist_imp_sensor = val.toInt();
     posliTEXT("servis.t3.txt=", String(dist_imp_sensor));
     if (SAMPLES_PER_MM > 0) {
@@ -577,6 +583,15 @@ void loop(void)
     }
     dist_count++;
   }
+  // if (Serial.available()) {
+  //   String val = Serial.readStringUntil('\n');
+  //   dist_imp_sensor = val.toInt();
+  //   posliTEXT("servis.t3.txt=", String(dist_imp_sensor));
+  //   if (SAMPLES_PER_MM > 0) {
+  //     dist_sensor = (dist_imp_sensor - zero_imp_distance) / SAMPLES_PER_MM;
+  //   }
+  //   dist_count++;
+  // }
 
 
   /*************************************************************************/
