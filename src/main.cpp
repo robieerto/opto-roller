@@ -163,6 +163,10 @@ bool end_measure;
 double relative_dist;
 // aktualny namerany priemer valca
 double priemer;
+// namerana dlzka valca
+double dlzka;
+// vzdialenost pri zaciatku valca
+double start_dist;
 // posledna vzdialenost pri ktorej sa ratal priemer
 double saved_dist;
 // nulovacia vzdialenost v impulzoch
@@ -317,12 +321,12 @@ void parseValues(char val) {
 
 int connectServer() {
   if (client.connect(server, port)) {
-    posliTEXT("home.t5.txt=", "connected to " + client.remoteIP().toString());
+    posliTEXT("home.t5.txt=", "Connected to " + client.remoteIP().toString());
     delay(1000);
     return 1;
   } else {
     // if you didn't get a connection to the server:
-    posliTEXT("home.t5.txt=", "connection failed" );
+    posliTEXT("home.t5.txt=", "Connection failed" );
         // reconnect after Ethernet unplugged
     if (Ethernet.linkStatus() == LinkOFF) {
       posliTEXT("home.t5.txt=", "Ethernet nepripojeny");
@@ -355,9 +359,26 @@ void setup(void)
   hwSerial_1.begin(921600, SERIAL_8N1, RX1, TX1); // RS422
   digitalWrite(LED, LOW);
   delay(100);
+
   // start the Ethernet connection
   Ethernet.init(ETH_CS);
-  Ethernet.begin(mac, ip, myDns);
+  // posliTEXT("home.t5.txt=", "Initialize Ethernet with DHCP");
+  // if (Ethernet.begin(mac) == 0) {
+  //   posliTEXT("home.t5.txt=", "Failed to configure Ethernet using DHCP");
+  //   // Check for Ethernet hardware present
+  //   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+  //     posliTEXT("home.t5.txt=", "Ethernet modul nenajdeny");
+  //   }
+  //   if (Ethernet.linkStatus() == LinkOFF) {
+  //     posliTEXT("home.t5.txt=", "Ethernet nepripojeny.");
+  //   }
+  //   // try to congifure using IP address instead of DHCP:
+  //   posliTEXT("home.t5.txt=", "Pouzita staticka IP adresa");
+    Ethernet.begin(mac, ip, myDns);
+  // } else {
+  //   posliTEXT("home.t5.txt=", "Pridelena IP: " + Ethernet.localIP().toString());
+  // }
+
   digitalWrite(LED, HIGH);
   delay(100);
   // EEPROM
@@ -400,6 +421,8 @@ void setup(void)
 //---------------------------------------------------------------------------
 void loop(void)
 {
+  // Ethernet.maintain();
+
   // posielanie udajov
   if (cas_print > 10) {
     cas_print = 0;
@@ -569,13 +592,7 @@ void loop(void)
   //---------------------------------------------------------------------------
   // senzor vzdialenosti
   if (Serial.available()) {
-    char s = ' ';
-    String val = "";
-    delay(3);
-    while (Serial.available() > 0) {
-      s = Serial.read();
-      val += char(s);
-    }
+    String val = Serial.readStringUntil('\n');
     dist_imp_sensor = val.toInt();
     posliTEXT("servis.t3.txt=", String(dist_imp_sensor));
     if (SAMPLES_PER_MM > 0) {
@@ -583,15 +600,6 @@ void loop(void)
     }
     dist_count++;
   }
-  // if (Serial.available()) {
-  //   String val = Serial.readStringUntil('\n');
-  //   dist_imp_sensor = val.toInt();
-  //   posliTEXT("servis.t3.txt=", String(dist_imp_sensor));
-  //   if (SAMPLES_PER_MM > 0) {
-  //     dist_sensor = (dist_imp_sensor - zero_imp_distance) / SAMPLES_PER_MM;
-  //   }
-  //   dist_count++;
-  // }
 
 
   /*************************************************************************/
@@ -635,7 +643,7 @@ void loop(void)
     bitWrite(hodnota1, 17, bitRead(H_Byte1, 5));
 
     data1R = hodnota1;
-    optical_sensor = ((data1R - 98232) / 65536) * 10; // snimac 10 mm
+    optical_sensor = ((data1R - 98232) / 65536) * 25; // snimac 25 mm
     opto_count++;
 
     // prepocitany priemer valca
@@ -662,21 +670,25 @@ void loop(void)
   // zaciname stlacenim tlacitka
   if (start_measure) {
     posliTEXT("home.t5.txt=", "Prebieha meranie");
-    // pri spusteni merania
-    if (is_measuring == false) {
-      saved_dist = dist_sensor;
-      is_measuring = true;
-      opto_count = 0;
-      dist_count = 0;
-      optoBuffer.clear();
-      distBuffer.clear();
-      memoryBuffer.clear();
-    }
-    // relativna vzdialenost od posledne nameranej hodnoty
-    relative_dist = dist_sensor - saved_dist;
 
     // prah vzdialenosti pre detekciu
     if (optical_sensor <= DIST_TRESHOLD) {
+      // pri spusteni merania
+      if (is_measuring == false) {
+        start_dist = dist_sensor;
+        saved_dist = dist_sensor;
+        is_measuring = true;
+        opto_count = 0;
+        dist_count = 0;
+        optoBuffer.clear();
+        distBuffer.clear();
+        memoryBuffer.clear();
+      }
+      // relativna vzdialenost od posledne nameranej hodnoty
+      relative_dist = dist_sensor - start_dist;
+      // aktualna dlzka valca
+      dlzka = dist_sensor - start_dist;
+
       // pridaj odmerany priemer
       if (relative_dist >= MEASURE_STEP) {
         memoryBuffer.addValue(priemer);
@@ -723,6 +735,7 @@ void loop(void)
       distTerminalId++; optoTerminalId++;
       actStep += showStep;
     }
+    posliTEXT("home.t70.txt=", String(dlzka));
     posliTEXT("home.t5.txt=", "Meranie ukoncene");
   }
 }

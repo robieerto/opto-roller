@@ -11,7 +11,7 @@ const int MEMORY_BUFFER_SIZE = 1000;
 /* nastavitelne */
 
 // maximalna vzdialenost
-int DIST_TRESHOLD = 10;
+int DIST_TRESHOLD = 25;
 // krok zaznamenavania hodnot
 double MEASURE_STEP = 5.0;
 // dlzka, na ktorej sa robi priemer
