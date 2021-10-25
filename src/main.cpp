@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <EthernetENC.h>
+#include <esp_task_wdt.h>
 #include "params.h"
 #include "DistBuffer.h"
 #include "esp_system.h"
@@ -37,6 +38,9 @@
 // pocet datovych bajtov zo senzora
 #define NUM_BYTES 3
 
+// watchdog timeout na restart
+#define WDT_TIMEOUT 5
+
 HardwareSerial hwSerial_1(1);
 HardwareSerial hwSerial_2(2);
 HardwareSerial hwSerial_3(3);
@@ -56,12 +60,10 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 // if you don't want to use DNS (and reduce your sketch size)
 // use the numeric IP instead of the name for the server:
 //IPAddress server(74,125,232,128);  // numeric IP for Google (no DNS)
-char server[] = "192.168.1.2";    // name address for Google (using DNS)
+String server;    // name address for Google (using DNS)
+int server_ip[4];
+int klient_ip[4];
 int port = 8080;
-
-// Set the static IP address to use if the DHCP fails to assign
-IPAddress ip(192, 168, 1, 3);
-IPAddress myDns(192, 168, 1, 1);
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server
@@ -99,8 +101,9 @@ uint8_t dataRS422_1;
 uint16_t pocet_sprav1;
 double data1R;
 
-double serial_read[15];
-double pamat_serial_read[15];
+const int serial_size = 15;
+double serial_read[serial_size];
+double pamat_serial_read[serial_size];
 uint16_t data1;
 uint16_t data2;
 uint16_t data3;
@@ -176,6 +179,7 @@ double zero_imp_distance;
 bool is_measuring;
 
 int byte_count;
+
 
 //---------------------------------------------------------------------------
 // posli text do terminalu
@@ -254,6 +258,7 @@ void parseValues(char val) {
       }
       else {
         float value = actVal.toFloat();
+        bool change_ip = false;
 
         if (actText == "vM") {
           mes = value;
@@ -280,9 +285,11 @@ void parseValues(char val) {
         }
         else if (actText == "vPriemer") {
           KALIB_PRIEMER = value;
+          serial_read[14] = KALIB_PRIEMER;
         }
         else if (actText == "vKalibruj") {
           KALIB_OPTO = optical_sensor;
+          serial_read[1] = KALIB_OPTO;
           posliTEXT("nastav.t1.txt=", String(KALIB_OPTO, 4));
         }
         else if (actText == "vKalib") {
@@ -290,22 +297,64 @@ void parseValues(char val) {
         }
         else if (actText == "vKrok") {
           MEASURE_STEP = value;
+          serial_read[2] = MEASURE_STEP;
         }
         else if (actText == "vDlzka") {
           LENGTH_SCOPE = value;
+          serial_read[3] = LENGTH_SCOPE;
         }
         else if (actText == "vservis1") {
           SAMPLES_PER_MM = value;
+          serial_read[4] = SAMPLES_PER_MM;
         }
         else if (actText == "vNuluj") {
           zero_imp_distance = dist_imp_sensor;
         }
+        else if (actText == "vethernet1") {
+          server_ip[0] = value;
+          serial_read[5] = server_ip[0];
+          change_ip = true;
+        }
+        else if (actText == "vethernet2") {
+          server_ip[1] = value;
+          serial_read[6] = server_ip[1];
+          change_ip = true;
+        }
+        else if (actText == "vethernet3") {
+          server_ip[2] = value;
+          serial_read[7] = server_ip[2];
+          change_ip = true;
+        }
+        else if (actText == "vethernet4") {
+          server_ip[3] = value;
+          serial_read[8] = server_ip[3];
+          change_ip = true;
+        }
+        else if (actText == "vethernet5") {
+          port = value;
+          serial_read[9] = port;
+        }
+        else if (actText == "vethernet6") {
+          klient_ip[0] = value;
+          serial_read[10] = klient_ip[0];
+        }
+        else if (actText == "vethernet7") {
+          klient_ip[1] = value;
+          serial_read[11] = klient_ip[1];
+        }
+        else if (actText == "vethernet8") {
+          klient_ip[2] = value;
+          serial_read[12] = klient_ip[2];
+        }
+        else if (actText == "vethernet9") {
+          klient_ip[3] = value;
+          serial_read[13] = klient_ip[3];
+        }
 
-        serial_read[0] = KALIB_PRIEMER;
-        serial_read[1] = KALIB_OPTO;
-        serial_read[2] = MEASURE_STEP;
-        serial_read[3] = LENGTH_SCOPE;
-        serial_read[4] = SAMPLES_PER_MM;
+        if (change_ip) {
+          server = String(server_ip[0]) + "." + String(server_ip[1])
+            + "." + String(server_ip[2]) + "." + String(server_ip[3]);
+        }
 
         zapisEEPROM = true;
         actText = "";
@@ -320,14 +369,14 @@ void parseValues(char val) {
 }
 
 int connectServer() {
-  if (client.connect(server, port)) {
-    posliTEXT("home.t5.txt=", "Connected to " + client.remoteIP().toString());
+  if (client.connect(server.c_str(), port)) {
+    posliTEXT("home.t5.txt=", "Connected to server");
     delay(1000);
     return 1;
   } else {
     // if you didn't get a connection to the server:
     posliTEXT("home.t5.txt=", "Connection failed" );
-        // reconnect after Ethernet unplugged
+    // reconnect after Ethernet unplugged
     if (Ethernet.linkStatus() == LinkOFF) {
       posliTEXT("home.t5.txt=", "Ethernet nepripojeny");
     }
@@ -358,27 +407,6 @@ void setup(void)
   // opticky snimac
   hwSerial_1.begin(921600, SERIAL_8N1, RX1, TX1); // RS422
   digitalWrite(LED, LOW);
-  delay(100);
-
-  // start the Ethernet connection
-  Ethernet.init(ETH_CS);
-  // posliTEXT("home.t5.txt=", "Initialize Ethernet with DHCP");
-  // if (Ethernet.begin(mac) == 0) {
-  //   posliTEXT("home.t5.txt=", "Failed to configure Ethernet using DHCP");
-  //   // Check for Ethernet hardware present
-  //   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-  //     posliTEXT("home.t5.txt=", "Ethernet modul nenajdeny");
-  //   }
-  //   if (Ethernet.linkStatus() == LinkOFF) {
-  //     posliTEXT("home.t5.txt=", "Ethernet nepripojeny.");
-  //   }
-  //   // try to congifure using IP address instead of DHCP:
-  //   posliTEXT("home.t5.txt=", "Pouzita staticka IP adresa");
-    Ethernet.begin(mac, ip, myDns);
-  // } else {
-  //   posliTEXT("home.t5.txt=", "Pridelena IP: " + Ethernet.localIP().toString());
-  // }
-
   digitalWrite(LED, HIGH);
   delay(100);
   // EEPROM
@@ -388,19 +416,35 @@ void setup(void)
   digitalWrite(LED, LOW);
   delay(100);
   // citanie z EEPROM
-  for (int i = 0 ; i <= 12 ; i++) { // data v eeprom od serial_read[0]
+  for (int i = 0 ; i < serial_size ; i++) { // data v eeprom od serial_read[0]
     EEPROM.get(i * 8, serial_read[i]); // zlozenie bytov double
     pamat_serial_read[i] = serial_read[i];
   }
   digitalWrite(LED, HIGH);
 
   delay(100);
-  KALIB_PRIEMER = serial_read[0];
+  KALIB_PRIEMER = serial_read[14];
   KALIB_OPTO = serial_read[1];
   MEASURE_STEP = serial_read[2];
   LENGTH_SCOPE = serial_read[3];
   SAMPLES_PER_MM = serial_read[4];
+  server_ip[0] = serial_read[5];
+  server_ip[1] = serial_read[6];
+  server_ip[2] = serial_read[7];
+  server_ip[3] = serial_read[8];
+  server = String(server_ip[0]) + "." + String(server_ip[1])
+    + "." + String(server_ip[2]) + "." + String(server_ip[3]);
+  port = serial_read[9];
+  klient_ip[0] = serial_read[10];
+  klient_ip[1] = serial_read[11];
+  klient_ip[2] = serial_read[12];
+  klient_ip[3] = serial_read[13];
 
+  delay(100);
+  Ethernet.init(ETH_CS);
+  // Set the static IP address
+  IPAddress ip(klient_ip[0], klient_ip[1], klient_ip[2], klient_ip[3]);
+  Ethernet.begin(mac, ip);
   delay(1000);
   // senzor vzdialenosti
   Serial.begin(115200, SERIAL_8N1); // RS422
@@ -415,13 +459,27 @@ void setup(void)
   posliTEXT("nastav.t2.txt=", String(MEASURE_STEP, 2));
   posliTEXT("nastav.t3.txt=", String(LENGTH_SCOPE, 2));
   posliTEXT("servis.t0.txt=", String(SAMPLES_PER_MM));
+  posliTEXT("ethernet.t1.txt=", String(server_ip[0]));
+  posliTEXT("ethernet.t2.txt=", String(server_ip[1]));
+  posliTEXT("ethernet.t3.txt=", String(server_ip[2]));
+  posliTEXT("ethernet.t4.txt=", String(server_ip[3]));
+  posliTEXT("ethernet.t5.txt=", String(port));
+  posliTEXT("ethernet.t6.txt=", String(klient_ip[0]));
+  posliTEXT("ethernet.t7.txt=", String(klient_ip[1]));
+  posliTEXT("ethernet.t8.txt=", String(klient_ip[2]));
+  posliTEXT("ethernet.t9.txt=", String(klient_ip[3]));
+
+  //----------------   watch dog -------------------------------------
+  // esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
+  // esp_task_wdt_add(NULL); //add current thread to WDT watch
 }
 
 
 //---------------------------------------------------------------------------
 void loop(void)
 {
-  // Ethernet.maintain();
+  // Ethernet.maintain(); // pri DHCP
+  // esp_task_wdt_reset();
 
   // posielanie udajov
   if (cas_print > 10) {
@@ -472,7 +530,7 @@ void loop(void)
   //---------------------------------------------------------------------------
   // zapis do EEPROM ak pride udaj z terminalu
   if (zapisEEPROM == true) {
-    for (int i = 0 ; i <= 12 ; i++) {
+    for (int i = 0 ; i < serial_size ; i++) {
       if (pamat_serial_read[i] != serial_read[i]) {
         EEPROM.put(i * 8, serial_read[i]);
         EEPROM.commit();
@@ -527,8 +585,6 @@ void loop(void)
   if (zapisEthernet) {
     test_timer = 0;
     zapisEthernet = false;
-
-    // Ethernet.maintain();
     connected = connectServer();
 
     if (client.connected()) {
@@ -548,7 +604,7 @@ void loop(void)
       data_column += getDateStr();
       // Make a HTTP request:
       client.println("POST /data HTTP/1.1");
-      client.println("Host: 192.168.1.2");
+      client.println("Host: " + server);
       client.println("User-Agent: Arduino/1.0");
       client.println("Content-Type: application/x-www-form-urlencoded;");
       client.print("Content-Length: ");
@@ -675,9 +731,9 @@ void loop(void)
     if (optical_sensor <= DIST_TRESHOLD) {
       // pri spusteni merania
       if (is_measuring == false) {
+        is_measuring = true;
         start_dist = dist_sensor;
         saved_dist = dist_sensor;
-        is_measuring = true;
         opto_count = 0;
         dist_count = 0;
         optoBuffer.clear();
@@ -685,7 +741,7 @@ void loop(void)
         memoryBuffer.clear();
       }
       // relativna vzdialenost od posledne nameranej hodnoty
-      relative_dist = dist_sensor - start_dist;
+      relative_dist = dist_sensor - saved_dist;
       // aktualna dlzka valca
       dlzka = dist_sensor - start_dist;
 
@@ -735,7 +791,7 @@ void loop(void)
       distTerminalId++; optoTerminalId++;
       actStep += showStep;
     }
-    posliTEXT("home.t70.txt=", String(dlzka));
+    posliTEXT("home.t70.txt=", String(dlzka, 2));
     posliTEXT("home.t5.txt=", "Meranie ukoncene");
   }
 }
