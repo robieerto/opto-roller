@@ -168,6 +168,8 @@ double relative_dist;
 double priemer;
 // namerana dlzka valca
 double dlzka;
+// dlzka pri krokoch
+double step_dlzka;
 // vzdialenost pri zaciatku valca
 double start_dist;
 // posledna vzdialenost pri ktorej sa ratal priemer
@@ -604,9 +606,9 @@ void loop(void)
       data_column += getDateStr();
       // Make a HTTP request:
       client.println("POST /data HTTP/1.1");
-      client.println("Host: " + server);
+      client.println("Host: " + server + ":" + String(port));
       client.println("User-Agent: Arduino/1.0");
-      client.println("Content-Type: application/x-www-form-urlencoded;");
+      client.println("Content-Type: text/plain;");
       client.print("Content-Length: ");
       client.println(data_column.length());
       // client.println("Connection: close");
@@ -734,6 +736,7 @@ void loop(void)
         is_measuring = true;
         start_dist = dist_sensor;
         saved_dist = dist_sensor;
+        step_dlzka = 0;
         opto_count = 0;
         dist_count = 0;
         optoBuffer.clear();
@@ -754,13 +757,14 @@ void loop(void)
       if (opto_measure_count >= LENGTH_SCOPE
           || relative_dist >= MEASURE_STEP*2) {
         opto_measure_count = 0;
-        double avg = memoryBuffer.getAverage();
         measures_per_sample = memoryBuffer.numElems;
+        saved_dist += MEASURE_STEP;
+        step_dlzka += MEASURE_STEP;
+        relative_dist = dist_sensor - saved_dist;
+        double avg = memoryBuffer.getAverage();
         memoryBuffer.clear();
         optoBuffer.addValue(avg);
-        distBuffer.addValue(saved_dist + MEASURE_STEP);
-        saved_dist += MEASURE_STEP;
-        relative_dist = dist_sensor - saved_dist;
+        distBuffer.addValue(step_dlzka);
       }
     }
   }
