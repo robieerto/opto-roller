@@ -1,3 +1,9 @@
+/**
+ * Meranie priemeru valca
+ * 
+ * pocet impulzov v Z osi: 213.236
+ */
+
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <EthernetENC.h>
