@@ -4,7 +4,7 @@
 /* konstanty */
 
 // maximalny pocet vzorkov pre vyrobok
-const int ROLLER_BUFFER_SIZE = 2000;
+const int ROLLER_BUFFER_SIZE = 4000;
 // velkost buffra na priemerovanie
 const int MEMORY_BUFFER_SIZE = 1000;
 
@@ -21,7 +21,7 @@ double KALIB_OPTO;
 // kalibrovany priemer
 double KALIB_PRIEMER;
 // vzorkov na mm - vzdialenostny snimac
-int SAMPLES_PER_MM;
+double SAMPLES_PER_MM;
 
 enum Surface { isNothing, isRoller };
 

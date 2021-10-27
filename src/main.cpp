@@ -153,10 +153,8 @@ DistBuffer<double> optoBuffer(ROLLER_BUFFER_SIZE);
 DistBuffer<double> distBuffer(ROLLER_BUFFER_SIZE);
 DistBuffer<double> memoryBuffer(MEMORY_BUFFER_SIZE);
 
-const int showBufferSize = 10;
-// DistBuffer<double> optoShow(showBufferSize);
-// DistBuffer<double> distShow(showBufferSize);
-
+// pocet hodnot zobrazenych na displeji
+const int showCount = 10;
 
 // vzdialenost z optickeho snimaca
 double optical_sensor;
@@ -265,7 +263,7 @@ void parseValues(char val) {
         actVal += val;
       }
       else {
-        float value = actVal.toFloat();
+        double value = actVal.toDouble();
         bool change_ip = false;
 
         if (actText == "vM") {
@@ -791,9 +789,9 @@ void loop(void)
     zapisSD = true;
     zapisEthernet = true;
 
-    int showStep = optoBuffer.numElems / showBufferSize;
+    int showStep = optoBuffer.numElems / showCount;
     int actStep = 0, distTerminalId = 50, optoTerminalId = 60;
-    for (int i = 0; i < showBufferSize; ++i) {
+    for (int i = 0; i < showCount; ++i) {
       // distShow.addValue(distBuffer.values[actStep]);
       // optoShow.addValue(optoBuffer.values[actStep]);
       posliTEXT("home.t"+String(distTerminalId)+".txt=", String(distBuffer.values[actStep], 0));
