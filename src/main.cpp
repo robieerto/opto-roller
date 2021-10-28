@@ -221,13 +221,13 @@ String surfaceToStr(Surface surface)
 String getDateStr() {
   String date = "";
   date += den; // den
-  date += "_";
-  date += mes; // mesiac
   date += "-";
+  date += mes; // mesiac
+  date += "_";
   date += hod; // hodiny
-  date += "_";
+  date += "-";
   date += minuty; // minuty
-  date += "_";
+  date += "-";
   date += sec; // sekundy
   return date;
 }
