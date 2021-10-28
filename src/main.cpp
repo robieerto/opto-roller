@@ -789,13 +789,14 @@ void loop(void)
   // koncime stlacenim tlacitka
   if (end_measure) {
     /* len na testovanie */
-    double dist = 0, opto = 0;
-    for (int i = 0; i < ROLLER_BUFFER_SIZE; ++i) {
-      optoBuffer.addValue(opto);
-      distBuffer.addValue(dist);
-      opto += 0.01;
-      dist += 0.1;
-    }
+    // double dist = 0, opto = 0;
+    // for (int i = 0; i < ROLLER_BUFFER_SIZE; ++i) {
+    //   optoBuffer.addValue(opto);
+    //   distBuffer.addValue(dist);
+    //   opto += 0.01;
+    //   dist += 0.1;
+    // }
+
     end_measure = false;
     start_measure = false;
     is_measuring = false;
