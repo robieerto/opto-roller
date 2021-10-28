@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require("path");
 const http = require('http');
+// require('./fileserver.js');
 
 const port = 8080;
 const dir = 'data/';
@@ -29,7 +30,7 @@ const requestListener = function (req, res) {
   });
 
   if (req.method === 'POST' && req.url === '/data') {
-    // && req.headers["user-agent"] == "Arduino/1.0") {
+    // && req.headers["user-agent"] == "Arduino") {
     // receive chunks of data
     data = '';
     req.on('data', chunk => {
@@ -108,7 +109,7 @@ const requestListener = function (req, res) {
           console.log(property + ': ' + req.headers[property])
       }
   }
-  console.log()
+  console.log();
 }
 
 const server = http.createServer(requestListener);
