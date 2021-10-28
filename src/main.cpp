@@ -464,7 +464,7 @@ void setup(void)
   posliTEXT("nastav.t1.txt=", String(KALIB_OPTO, 4));
   posliTEXT("nastav.t2.txt=", String(MEASURE_STEP, 2));
   posliTEXT("nastav.t3.txt=", String(LENGTH_SCOPE, 2));
-  posliTEXT("servis.t0.txt=", String(SAMPLES_PER_MM));
+  posliTEXT("servis.t0.txt=", String(SAMPLES_PER_MM, 4));
   posliTEXT("ethernet.t1.txt=", String(server_ip[0]));
   posliTEXT("ethernet.t2.txt=", String(server_ip[1]));
   posliTEXT("ethernet.t3.txt=", String(server_ip[2]));
