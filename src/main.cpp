@@ -562,18 +562,18 @@ void loop(void)
       if (dataFile) {
         posliTEXT("home.t5.txt=", "Prebieha zapis na kartu");
         dataFile.println("ciarovy_kod,vzdialenost,priemer");
-        String data_column;
-        data_column = ciarovy_kod;
+        String data_row;
+        data_row = ciarovy_kod;
         for (int i = 0; i < optoBuffer.numElems; ++i) {
-          data_column += ",";
-          data_column += String(distBuffer.values[i], 2);
-          data_column += ",";
-          data_column += String(optoBuffer.values[i], 4);
-          dataFile.println(data_column);
-          data_column = "";
+          data_row += ",";
+          data_row += String(distBuffer.values[i], 2);
+          data_row += ",";
+          data_row += String(optoBuffer.values[i], 4);
+          dataFile.println(data_row);
+          data_row = "";
         }
         if (!ciarovy_kod.isEmpty() && optoBuffer.numElems == 0) {
-          dataFile.println(data_column);
+          dataFile.println(data_row);
         }
         dataFile.close();
         posliTEXT("home.t5.txt=", "Zapis na kartu OK");
@@ -594,30 +594,43 @@ void loop(void)
     connected = connectServer();
 
     if (client.connected()) {
-      // String data_column = String(optical_sensor);
-      String data_column = "ciarovy_kod,vzdialenost,priemer\n";
-      data_column += ciarovy_kod;
-      for (int i = 0; i < optoBuffer.numElems; ++i) {
-        data_column += ",";
-        data_column += String(distBuffer.values[i], 0);
-        data_column += ",";
-        data_column += String(optoBuffer.values[i], 4);
-        data_column += '\n';
-      }
-      if (!ciarovy_kod.isEmpty() && optoBuffer.numElems == 0) {
-        data_column += '\n';
-      }
-      data_column += getDateStr();
       // Make a HTTP request:
       client.println("POST /data HTTP/1.1");
       client.println("Host: " + server + ":" + String(port));
-      client.println("User-Agent: Arduino/1.0");
-      client.println("Content-Type: text/plain;");
-      client.print("Content-Length: ");
-      client.println(data_column.length());
-      // client.println("Connection: close");
+      client.println("User-Agent: Arduino");
+      client.println("Content-Type: text/plain");
+      client.println("Transfer-Encoding: chunked");
+      // client.print("Content-Length: ");
+      // client.println(data_row.length());
+      client.println("Connection: close");
       client.println();
-      client.println(data_column);
+
+      // send chunked data
+      String data_row = "ciarovy_kod,vzdialenost,priemer\n";
+      data_row += ciarovy_kod;
+      for (int i = 0; i < optoBuffer.numElems; ++i) {
+        data_row += ",";
+        data_row += String(distBuffer.values[i], 0);
+        data_row += ",";
+        data_row += String(optoBuffer.values[i], 4);
+        data_row += '\n';
+        // send one row
+        client.println(String(data_row.length(), HEX));
+        client.println(data_row);
+        data_row = "";
+      }
+      if (!ciarovy_kod.isEmpty() && optoBuffer.numElems == 0) {
+        data_row += '\n';
+      }
+      data_row += getDateStr();
+      // send last data row
+      client.println(String(data_row.length(), HEX));
+      client.println(data_row);
+      // send ending row
+      client.println(String(0, HEX));
+      client.println();
+
+      // disconnect, flush the client
       while (client.connected()) {
         client.flush();
         client.stop();
@@ -776,13 +789,13 @@ void loop(void)
   // koncime stlacenim tlacitka
   if (end_measure) {
     /* len na testovanie */
-    // double dist = 0, opto = 0;
-    // for (int i = 0; i < ROLLER_BUFFER_SIZE; ++i) {
-    //   optoBuffer.addValue(opto);
-    //   distBuffer.addValue(dist);
-    //   opto += 0.01;
-    //   dist += 0.1;
-    // }
+    double dist = 0, opto = 0;
+    for (int i = 0; i < ROLLER_BUFFER_SIZE; ++i) {
+      optoBuffer.addValue(opto);
+      distBuffer.addValue(dist);
+      opto += 0.01;
+      dist += 0.1;
+    }
     end_measure = false;
     start_measure = false;
     is_measuring = false;
