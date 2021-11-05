@@ -20,8 +20,8 @@ double LENGTH_SCOPE;
 double KALIB_OPTO;
 // kalibrovany priemer
 double KALIB_PRIEMER;
-// kalibracna vzdialenost
-double KALIB_DIST;
+// kalibracna dlzka
+double KALIB_DLZKA;
 // vzorkov na mm - vzdialenostny snimac
 double SAMPLES_PER_MM;
 // pomer medianovych hodnot voci celkovemu poctu

@@ -181,6 +181,8 @@ double zero_imp_distance;
 
 // prebieha meranie
 bool is_measuring;
+// prebieha kalibracia
+bool is_calibrating;
 
 int byte_count;
 
@@ -376,6 +378,25 @@ int connectServer() {
     }
   }
   return 0;
+}
+
+double evaluateMemoryBuffer() {
+  int bufferCount = memoryBuffer.getCount();
+  double avg;
+  if (NUM_MEDIANS_RATE > 0) {
+    // pocet medianov, z ktorych sa zrobi priemer
+    int avgCount = (double)bufferCount / NUM_MEDIANS_RATE;
+    if (avgCount > 0) {
+      avg = memoryBuffer.getAverage(avgCount);
+    }
+    else {
+      avg = memoryBuffer.getAverage();
+    }
+  }
+  else {
+    avg = memoryBuffer.getAverage();
+  }
+  return avg;
 }
 
 //---------------------------------------------------------------------------
@@ -737,6 +758,9 @@ void loop(void)
       // pri spusteni merania
       if (is_measuring == false) {
         is_measuring = true;
+        if (KALIB_DLZKA > 0) {
+          is_calibrating = true;
+        }
         start_dist = dist_sensor;
         next_step = MEASURE_STEP;
         opto_count = 0;
@@ -751,22 +775,28 @@ void loop(void)
       memoryBuffer.add(priemer);
       measures_per_sample++;
 
-      // vyhodnot buffre
+      // vyhodnot buffer a uloz si spriemerovanu hodnotu medzi zaznamy
       if (dlzka >= next_step) {
-        measures_per_sample = 0;
+        double avg = evaluateMemoryBuffer();
         next_step += MEASURE_STEP;
-        int bufferCount = memoryBuffer.getCount();
-        double avg;
-        if (NUM_MEDIANS_RATE > 0) {
-          int avgCount = (double)bufferCount / NUM_MEDIANS_RATE;
-          avg = memoryBuffer.getAverage(avgCount);
-        }
-        else {
-          avg = memoryBuffer.getAverage();
-        }
-        memoryBuffer.clear();
+        measures_per_sample = 0;
         optoBuffer.add(avg);
         distBuffer.add(next_step);
+      }
+      // vyhodnot buffer ked kalibrujeme
+      if (is_calibrating && dlzka >= KALIB_DLZKA) {
+        double avg = evaluateMemoryBuffer();
+        KALIB_OPTO = avg;
+        is_calibrating = false;
+        // uprav vsetky predosle hodnoty
+        if (optoBuffer.numElems > 0) {
+          for (int i = 0; i < optoBuffer.numElems; ++i) {
+            optoBuffer.values[i] += KALIB_OPTO * 2;
+          }
+        }
+      }
+      if (is_calibrating == false) {
+          memoryBuffer.clear();
       }
     }
   }
