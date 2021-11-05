@@ -758,11 +758,12 @@ void loop(void)
       // pri spusteni merania
       if (is_measuring == false) {
         is_measuring = true;
-        if (KALIB_DLZKA > 0) {
-          is_calibrating = true;
-        }
         start_dist = dist_sensor;
         next_step = MEASURE_STEP;
+        if (KALIB_DLZKA > 0) {
+          is_calibrating = true;
+          next_step += KALIB_DLZKA;
+        }
         opto_count = 0;
         dist_count = 0;
         optoBuffer.clear();
@@ -775,28 +776,22 @@ void loop(void)
       memoryBuffer.add(priemer);
       measures_per_sample++;
 
+      if (is_calibrating) {
+        if (dlzka >= KALIB_DLZKA) {
+          double avg = evaluateMemoryBuffer();
+          KALIB_OPTO = avg;
+          is_calibrating = false;
+          memoryBuffer.clear();
+        }
+      }
       // vyhodnot buffer a uloz si spriemerovanu hodnotu medzi zaznamy
-      if (dlzka >= next_step) {
+      else if (dlzka >= next_step) {
         double avg = evaluateMemoryBuffer();
         next_step += MEASURE_STEP;
         measures_per_sample = 0;
         optoBuffer.add(avg);
         distBuffer.add(next_step);
-      }
-      // vyhodnot buffer ked kalibrujeme
-      if (is_calibrating && dlzka >= KALIB_DLZKA) {
-        double avg = evaluateMemoryBuffer();
-        KALIB_OPTO = avg;
-        is_calibrating = false;
-        // uprav vsetky predosle hodnoty
-        if (optoBuffer.numElems > 0) {
-          for (int i = 0; i < optoBuffer.numElems; ++i) {
-            optoBuffer.values[i] += KALIB_OPTO * 2;
-          }
-        }
-      }
-      if (is_calibrating == false) {
-          memoryBuffer.clear();
+        memoryBuffer.clear();
       }
     }
   }
