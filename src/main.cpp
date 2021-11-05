@@ -13,6 +13,7 @@
 #include "esp_system.h"
 #include "SoftwareSerial.h"
 #include "SD.h"
+#include "RunningMedian.h"
 
 #define SCK   18
 #define MISO  19
@@ -151,7 +152,9 @@ bool initSD;
 // buffre
 DistBuffer<double> optoBuffer(ROLLER_BUFFER_SIZE);
 DistBuffer<double> distBuffer(ROLLER_BUFFER_SIZE);
-DistBuffer<double> memoryBuffer(MEMORY_BUFFER_SIZE);
+// DistBuffer<double> memoryBuffer(MEMORY_BUFFER_SIZE);
+RunningMedian memoryBuffer = RunningMedian(MEMORY_BUFFER_SIZE);
+
 
 // pocet hodnot zobrazenych na displeji
 const int showCount = 10;
@@ -206,16 +209,6 @@ void posliDATA(String text1, uint16_t data) {
   hwSerial_2.write(0xff);
   hwSerial_2.write(0xff);
   hwSerial_2.write(0xff);
-}
-
-String surfaceToStr(Surface surface)
-{
-  if (surface == isNothing) {
-    return "nic";
-  }
-  else {
-    return "valec";
-  }
 }
 
 String getDateStr() {
@@ -457,7 +450,7 @@ void setup(void)
   digitalWrite(LED, LOW);
   delay(100);
   digitalWrite(LED, HIGH);
-  
+
   delay(500); // oneskorenie aby presiel zapis na terminal
   // zapis hodnot na terminal
   posliTEXT("nastav.t0.txt=", String(KALIB_PRIEMER, 2));
@@ -610,7 +603,7 @@ void loop(void)
       data_row += ciarovy_kod;
       for (int i = 0; i < optoBuffer.numElems; ++i) {
         data_row += ",";
-        data_row += String(distBuffer.values[i], 0);
+        data_row += String(distBuffer.values[i], 2);
         data_row += ",";
         data_row += String(optoBuffer.values[i], 4);
         data_row += '\n';
@@ -767,21 +760,21 @@ void loop(void)
 
       // pridaj odmerany priemer
       if (relative_dist >= MEASURE_STEP) {
-        memoryBuffer.addValue(priemer);
+        memoryBuffer.add(priemer);
         opto_measure_count++;
       }
       // vyhodnot buffre
       if (opto_measure_count >= LENGTH_SCOPE
           || relative_dist >= MEASURE_STEP*2) {
         opto_measure_count = 0;
-        measures_per_sample = memoryBuffer.numElems;
+        measures_per_sample = memoryBuffer.getCount();
         saved_dist += MEASURE_STEP;
         step_dlzka += MEASURE_STEP;
         relative_dist = dist_sensor - saved_dist;
         double avg = memoryBuffer.getAverage();
         memoryBuffer.clear();
-        optoBuffer.addValue(avg);
-        distBuffer.addValue(step_dlzka);
+        optoBuffer.add(avg);
+        distBuffer.add(step_dlzka);
       }
     }
   }
@@ -791,8 +784,8 @@ void loop(void)
     /* len na testovanie */
     // double dist = 0, opto = 0;
     // for (int i = 0; i < ROLLER_BUFFER_SIZE; ++i) {
-    //   optoBuffer.addValue(opto);
-    //   distBuffer.addValue(dist);
+    //   optoBuffer.add(opto);
+    //   distBuffer.add(dist);
     //   opto += 0.01;
     //   dist += 0.1;
     // }
@@ -806,8 +799,6 @@ void loop(void)
     int showStep = optoBuffer.numElems / showCount;
     int actStep = 0, distTerminalId = 50, optoTerminalId = 60;
     for (int i = 0; i < showCount; ++i) {
-      // distShow.addValue(distBuffer.values[actStep]);
-      // optoShow.addValue(optoBuffer.values[actStep]);
       posliTEXT("home.t"+String(distTerminalId)+".txt=", String(distBuffer.values[actStep], 0));
       posliTEXT("home.t"+String(optoTerminalId)+".txt=", String(optoBuffer.values[actStep], 4));
       distTerminalId++; optoTerminalId++;

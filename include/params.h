@@ -7,22 +7,22 @@
 const int ROLLER_BUFFER_SIZE = 5000;
 // velkost buffra na priemerovanie
 const int MEMORY_BUFFER_SIZE = 1000;
+// maximalna vzdialenost
+int DIST_TRESHOLD = 25;
 
 /* nastavitelne */
 
-// maximalna vzdialenost
-int DIST_TRESHOLD = 25;
 // krok zaznamenavania hodnot
-double MEASURE_STEP = 5.0;
+double MEASURE_STEP;
 // dlzka, na ktorej sa robi priemer
-double LENGTH_SCOPE = 1.0;
+double LENGTH_SCOPE;
 // kalibrovana hodnota snimaca
 double KALIB_OPTO;
 // kalibrovany priemer
 double KALIB_PRIEMER;
+// kalibracna vzdialenost
+double KALIB_DIST;
 // vzorkov na mm - vzdialenostny snimac
 double SAMPLES_PER_MM;
-
-enum Surface { isNothing, isRoller };
 
 #endif //OPTO_DISTANCE_PARAMS_H

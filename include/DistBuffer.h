@@ -7,9 +7,10 @@
 template <class Any_Type> class DistBuffer {
 public:
     explicit DistBuffer(const size_t &size);
-    void addValue(const Any_Type &value);
-    void addValues(const Any_Type *new_values, size_t num, Any_Type new_sum);
+    void add(const Any_Type &value);
+    void addMore(const Any_Type *new_values, size_t num, Any_Type new_sum);
     void clear();
+    size_t getCount();
     Any_Type getAverage() const;
     Any_Type *getActual();
     Any_Type* values;
@@ -19,6 +20,10 @@ public:
     Any_Type sum;
     bool isFull;
 };
+
+template <class Any_Type> size_t DistBuffer<Any_Type>:: getCount() {
+    return numElems;
+}
 
 template <class Any_Type> DistBuffer<Any_Type>::DistBuffer(const size_t &buff_size)
 {
@@ -30,7 +35,7 @@ template <class Any_Type> DistBuffer<Any_Type>::DistBuffer(const size_t &buff_si
     isFull = false;
 }
 
-template <class Any_Type> void DistBuffer<Any_Type>::addValue(const Any_Type &value)
+template <class Any_Type> void DistBuffer<Any_Type>::add(const Any_Type &value)
 {
     if (numElems < size) {
         values[index++] = value;
@@ -43,7 +48,7 @@ template <class Any_Type> void DistBuffer<Any_Type>::addValue(const Any_Type &va
     }
 }
 
-template <class Any_Type> void DistBuffer<Any_Type>::addValues(const Any_Type *new_values, size_t num, Any_Type new_sum)
+template <class Any_Type> void DistBuffer<Any_Type>::addMore(const Any_Type *new_values, size_t num, Any_Type new_sum)
 {
     if (numElems + num < size) {
         memcpy(values, new_values, sizeof(double)*num);
