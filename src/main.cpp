@@ -124,7 +124,6 @@ uint16_t alarm_sig;
 
 uint16_t opto_count;
 uint16_t dist_count;
-uint16_t opto_measure_count;
 uint16_t measures_per_sample;
 
 // posielane z terminalu
@@ -169,18 +168,14 @@ int32_t dist_imp_sensor;
 bool start_measure;
 // koniec merania
 bool end_measure;
-// relativna vzdialenost od posledneho udaju
-double relative_dist;
 // aktualny namerany priemer valca
 double priemer;
 // namerana dlzka valca
 double dlzka;
 // dlzka pri krokoch
-double step_dlzka;
+double next_step;
 // vzdialenost pri zaciatku valca
 double start_dist;
-// posledna vzdialenost pri ktorej sa ratal priemer
-double saved_dist;
 // nulovacia vzdialenost v impulzoch
 double zero_imp_distance;
 
@@ -669,6 +664,19 @@ void loop(void)
     dist_count++;
   }
 
+  //---------------------------------------------------------------------------
+  // tlacitka a ledky
+  if (digitalRead(START_BUTTON) == LOW) {
+    start_measure = true;
+    digitalWrite(LED_STOP, LOW);
+    digitalWrite(LED_START, HIGH);
+  }
+  if (start_measure && digitalRead(STOP_BUTTON) == LOW) {
+    end_measure = true;
+    digitalWrite(LED_START, LOW);
+    digitalWrite(LED_STOP, HIGH);
+  }
+
 
   /*************************************************************************/
   // opticky senzor vysky
@@ -718,21 +726,6 @@ void loop(void)
     priemer = KALIB_PRIEMER + 2*(KALIB_OPTO - optical_sensor);
   }
 
-
-  // tlacitka a ledky
-  /*************************************************************************/
-  if (digitalRead(START_BUTTON) == LOW) {
-    start_measure = true;
-    digitalWrite(LED_STOP, LOW);
-    digitalWrite(LED_START, HIGH);
-  }
-  if (start_measure && digitalRead(STOP_BUTTON) == LOW) {
-    end_measure = true;
-    digitalWrite(LED_START, LOW);
-    digitalWrite(LED_STOP, HIGH);
-  }
-
-
   // zaciatok merania
   /*************************************************************************/
   // zaciname stlacenim tlacitka
@@ -745,36 +738,35 @@ void loop(void)
       if (is_measuring == false) {
         is_measuring = true;
         start_dist = dist_sensor;
-        saved_dist = dist_sensor;
-        step_dlzka = 0;
+        next_step = MEASURE_STEP;
         opto_count = 0;
         dist_count = 0;
         optoBuffer.clear();
         distBuffer.clear();
         memoryBuffer.clear();
       }
-      // relativna vzdialenost od posledne nameranej hodnoty
-      relative_dist = dist_sensor - saved_dist;
       // aktualna dlzka valca
       dlzka = dist_sensor - start_dist;
+      // pridaj odmerany priemer valca
+      memoryBuffer.add(priemer);
+      measures_per_sample++;
 
-      // pridaj odmerany priemer
-      if (relative_dist >= MEASURE_STEP) {
-        memoryBuffer.add(priemer);
-        opto_measure_count++;
-      }
       // vyhodnot buffre
-      if (opto_measure_count >= LENGTH_SCOPE
-          || relative_dist >= MEASURE_STEP*2) {
-        opto_measure_count = 0;
-        measures_per_sample = memoryBuffer.getCount();
-        saved_dist += MEASURE_STEP;
-        step_dlzka += MEASURE_STEP;
-        relative_dist = dist_sensor - saved_dist;
-        double avg = memoryBuffer.getAverage();
+      if (dlzka >= next_step) {
+        measures_per_sample = 0;
+        next_step += MEASURE_STEP;
+        int bufferCount = memoryBuffer.getCount();
+        double avg;
+        if (NUM_MEDIANS_RATE > 0) {
+          int avgCount = (double)bufferCount / NUM_MEDIANS_RATE;
+          avg = memoryBuffer.getAverage(avgCount);
+        }
+        else {
+          avg = memoryBuffer.getAverage();
+        }
         memoryBuffer.clear();
         optoBuffer.add(avg);
-        distBuffer.add(step_dlzka);
+        distBuffer.add(next_step);
       }
     }
   }

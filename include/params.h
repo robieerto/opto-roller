@@ -24,5 +24,7 @@ double KALIB_PRIEMER;
 double KALIB_DIST;
 // vzorkov na mm - vzdialenostny snimac
 double SAMPLES_PER_MM;
+// pomer medianovych hodnot voci celkovemu poctu
+double NUM_MEDIANS_RATE;
 
 #endif //OPTO_DISTANCE_PARAMS_H
