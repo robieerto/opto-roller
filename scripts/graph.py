@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import filedialog
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 from pandas import read_csv
 from sys import exit
 
@@ -22,18 +23,24 @@ def browseFiles():
     else:
         filename = ""
 
+def form4(y, pos):
+    """ This function returns a string with 3 decimal places, given the input x"""
+    return '%.4f' % y
+
 def drawGraph():
-    data = read_csv(filename)
-    # Plot
-    x = range(len(data['vzdialenost']))
-    plt.plot(x, data['priemer'])
-    plt.xlabel('Vzdialenosť (mm)')
-    plt.ylabel('Priemer (mm)')
-    # setting the xticks to have 3 decimal places
-    # yy, locs = plt.yticks()
-    # ll = ['%.4f' % a for a in yy]
-    # plt.yticks(yy, ll)
-    plt.show()
+    try:
+        data = read_csv(filename)
+        # Plot
+        x = range(len(data['vzdialenost']))
+        plt.plot(x, data['priemer'])
+        plt.xlabel('Vzdialenosť (mm)')
+        plt.ylabel('Priemer (mm)')
+        # formatter = FuncFormatter(form4)
+        # plt.gca().yaxis.set_major_formatter(FuncFormatter(formatter))
+        plt.gca().get_yaxis().get_major_formatter().set_useOffset(False)
+        plt.show()
+    except:
+        pass
 
 
 window = Tk()
@@ -63,3 +70,4 @@ Label(window).grid(column=1, row = 5)
 button_exit.grid(column = 1, row = 6)
 
 window.mainloop()
+drawGraph()
