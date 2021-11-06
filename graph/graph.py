@@ -1,11 +1,19 @@
 from tkinter import *
 from tkinter import filedialog
+import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+# from matplotlib.ticker import FuncFormatter
 from pandas import read_csv
 from sys import exit
 
+# Matplotlib backends: ['Qt5Agg', 'TkAgg']
+matplotlib.use("Qt5Agg")
+
 filename = ""
+window = Tk()
+window.title('CSV graf')
+# window.iconbitmap('icon.ico')
+window.geometry("400x230")
 
 # Function for opening the
 # file explorer window
@@ -43,11 +51,6 @@ def drawGraph():
         pass
 
 
-window = Tk()
-window.title('CSV graf')
-# img = PhotoImage(file='graph.png')
-# window.tk.call('wm', 'iconphoto', window._w, img)
-window.geometry("400x230")
 label_file_explorer = Label(window,
                             text = "Vyberte CSV súbor s dátami",
                             width = 50, height = 4,
@@ -70,4 +73,3 @@ Label(window).grid(column=1, row = 5)
 button_exit.grid(column = 1, row = 6)
 
 window.mainloop()
-drawGraph()
