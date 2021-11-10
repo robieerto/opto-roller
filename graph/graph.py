@@ -4,16 +4,29 @@ import matplotlib
 import matplotlib.pyplot as plt
 # from matplotlib.ticker import FuncFormatter
 from pandas import read_csv
-from sys import exit
+import sys
+import os
+
 
 # Matplotlib backends: ['Qt5Agg', 'TkAgg']
 matplotlib.use("Qt5Agg")
 
+# Get resource path
+def resource_path(relative_path):    
+    try:       
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 filename = ""
 window = Tk()
 window.title('CSV graf')
-# window.iconbitmap('icon.ico')
+window.iconbitmap(default=resource_path('icon.ico'))
 window.geometry("400x230")
+
 
 # Function for opening the
 # file explorer window
@@ -63,7 +76,7 @@ button_graph = Button(window,
                         command = drawGraph)
 button_exit = Button(window,
                      text = "Ukonči",
-                     command = exit)
+                     command = sys.exit)
 
 label_file_explorer.grid(column = 1, row = 1)
 button_explore.grid(column = 1, row = 2)
