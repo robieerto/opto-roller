@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import filedialog
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 # from matplotlib.ticker import FuncFormatter
 from pandas import read_csv
 import sys
@@ -9,7 +10,7 @@ import os
 
 
 # Matplotlib backends: ['Qt5Agg', 'TkAgg']
-matplotlib.use("Qt5Agg")
+matplotlib.use("TkAgg")
 
 # Get resource path
 def resource_path(relative_path):    
@@ -59,6 +60,10 @@ def drawGraph():
         # formatter = FuncFormatter(form4)
         # plt.gca().yaxis.set_major_formatter(FuncFormatter(formatter))
         plt.gca().get_yaxis().get_major_formatter().set_useOffset(False)
+        plt.gca().xaxis.set_major_locator(MaxNLocator(min_n_ticks=15))
+        plt.gca().yaxis.set_major_locator(MaxNLocator(min_n_ticks=30))
+        # plt.gca().set_xlim(0)
+        plt.grid(linestyle=':', linewidth=1)
         plt.show()
     except:
         pass
