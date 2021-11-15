@@ -53,8 +53,9 @@ def drawGraph():
     try:
         data = read_csv(filename)
         # Plot
-        x = range(len(data['vzdialenost']))
-        plt.plot(x, data['priemer'])
+        x = data['vzdialenost']
+        y = data['priemer']
+        plt.plot(x, y)
         plt.xlabel('Vzdialenosť (mm)')
         plt.ylabel('Priemer (mm)')
         # formatter = FuncFormatter(form4)
@@ -62,7 +63,8 @@ def drawGraph():
         plt.gca().get_yaxis().get_major_formatter().set_useOffset(False)
         plt.gca().xaxis.set_major_locator(MaxNLocator(min_n_ticks=15))
         plt.gca().yaxis.set_major_locator(MaxNLocator(min_n_ticks=30))
-        # plt.gca().set_xlim(0)
+        plt.gca().set_xlim(0)
+        plt.gca().set_ylim(bottom=max(data['priemer'])*0.99, top=max(data['priemer'])*1.005)
         plt.grid(linestyle=':', linewidth=1)
         plt.show()
     except:
