@@ -8,12 +8,12 @@
 #include <EEPROM.h>
 #include <EthernetENC.h>
 #include <esp_task_wdt.h>
+#include <SD.h>
+#include <SoftwareSerial.h>
+#include <RunningMedian.h>
 #include "params.h"
 #include "DistBuffer.h"
 #include "esp_system.h"
-#include "SoftwareSerial.h"
-#include "SD.h"
-#include "RunningMedian.h"
 
 #define SCK   18
 #define MISO  19
@@ -383,19 +383,20 @@ int connectServer() {
 double evaluateMemoryBuffer() {
   int bufferCount = memoryBuffer.getCount();
   double avg;
-  if (NUM_MEDIANS_RATE > 0) {
-    // pocet medianov, z ktorych sa zrobi priemer
-    int avgCount = (double)bufferCount / NUM_MEDIANS_RATE;
-    if (avgCount > 0) {
-      avg = memoryBuffer.getAverage(avgCount);
-    }
-    else {
-      avg = memoryBuffer.getAverage();
-    }
-  }
-  else {
-    avg = memoryBuffer.getAverage();
-  }
+  // if (NUM_MEDIANS_RATE > 0) {
+  //   // pocet medianov, z ktorych sa zrobi priemer
+  //   int avgCount = (double)bufferCount / NUM_MEDIANS_RATE;
+  //   if (avgCount > 0) {
+  //     avg = memoryBuffer.getAverage(avgCount);
+  //   }
+  //   else {
+  //     avg = memoryBuffer.getMedian();
+  //   }
+  // }
+  // else {
+  //   avg = memoryBuffer.getMedian();
+  // }
+  avg = memoryBuffer.getMedian();
   return avg;
 }
 
@@ -508,7 +509,7 @@ void loop(void)
   }
 
   /* casovace */
-  if (abs(millis() - timer1) >= 10) {
+  if (abs((long int)(millis() - timer1)) >= 10) {
     timer1 = millis();
     citac++;
     cas_print++;
@@ -519,7 +520,7 @@ void loop(void)
 
   //---------------------------------------------------------------------------
   // pocitanie realneho casu
-  if (abs(millis() - timerDsec) >= 1000) {
+  if (abs((long int)(millis() - timerDsec)) >= 1000) {
     test_timer++;
     sec++;
     timerDsec = millis();
@@ -776,23 +777,28 @@ void loop(void)
       memoryBuffer.add(priemer);
       measures_per_sample++;
 
-      if (is_calibrating) {
-        if (dlzka >= KALIB_DLZKA) {
+      // kalibracia
+      // if (is_calibrating) {
+      //   memoryBuffer.add(optical_sensor);
+      //   if (dlzka >= KALIB_DLZKA) {
+      //     double avg = evaluateMemoryBuffer();
+      //     KALIB_OPTO = avg;
+      //     is_calibrating = false;
+      //     memoryBuffer.clear();
+      //   }
+      // }
+      // // meranie
+      // else {
+        memoryBuffer.add(priemer);
+        if (dlzka >= next_step) {
           double avg = evaluateMemoryBuffer();
-          KALIB_OPTO = avg;
-          is_calibrating = false;
+          next_step += MEASURE_STEP;
+          optoBuffer.add(avg);
+          distBuffer.add(next_step);
           memoryBuffer.clear();
+          measures_per_sample = 0;
         }
-      }
-      // vyhodnot buffer a uloz si spriemerovanu hodnotu medzi zaznamy
-      else if (dlzka >= next_step) {
-        double avg = evaluateMemoryBuffer();
-        next_step += MEASURE_STEP;
-        measures_per_sample = 0;
-        optoBuffer.add(avg);
-        distBuffer.add(next_step);
-        memoryBuffer.clear();
-      }
+      // }
     }
   }
 
@@ -817,7 +823,7 @@ void loop(void)
     int actStep = 0, distTerminalId = 50, optoTerminalId = 60;
     for (int i = 0; i < showCount; ++i) {
       posliTEXT("home.t"+String(distTerminalId)+".txt=", String(distBuffer.values[actStep], 0));
-      posliTEXT("home.t"+String(optoTerminalId)+".txt=", String(optoBuffer.values[actStep], 4));
+      posliTEXT("home.t"+String(optoTerminalId)+".txt=", String(optoBuffer.values[actStep], 3));
       distTerminalId++; optoTerminalId++;
       actStep += showStep;
     }
