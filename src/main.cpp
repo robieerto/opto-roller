@@ -761,10 +761,10 @@ void loop(void)
         is_measuring = true;
         start_dist = dist_sensor;
         next_step = MEASURE_STEP;
-        if (KALIB_DLZKA > 0) {
-          is_calibrating = true;
-          next_step += KALIB_DLZKA;
-        }
+        // if (KALIB_DLZKA > 0) {
+        //   is_calibrating = true;
+        //   next_step += KALIB_DLZKA;
+        // }
         opto_count = 0;
         dist_count = 0;
         optoBuffer.clear();
@@ -773,9 +773,6 @@ void loop(void)
       }
       // aktualna dlzka valca
       dlzka = dist_sensor - start_dist;
-      // pridaj odmerany priemer valca
-      memoryBuffer.add(priemer);
-      measures_per_sample++;
 
       // kalibracia
       // if (is_calibrating) {
@@ -789,7 +786,9 @@ void loop(void)
       // }
       // // meranie
       // else {
+        // pridaj odmerany priemer valca
         memoryBuffer.add(priemer);
+        measures_per_sample++;
         if (dlzka >= next_step) {
           double avg = evaluateMemoryBuffer();
           next_step += MEASURE_STEP;
