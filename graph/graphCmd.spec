@@ -4,10 +4,10 @@
 block_cipher = None
 
 
-a = Analysis(['graph.py'],
+a = Analysis(['graphCmd.py'],
              pathex=[],
              binaries=[],
-             datas=[('icon.ico', '.')],
+             datas=[],
              hiddenimports=[],
              hookspath=[],
              hooksconfig={},
@@ -24,16 +24,16 @@ exe = EXE(pyz,
           a.scripts, 
           [],
           exclude_binaries=True,
-          name='graph',
+          name='graphCmd',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=False,
+          console=True,
           disable_windowed_traceback=False,
           target_arch=None,
           codesign_identity=None,
-          entitlements_file=None , icon='icon.ico')
+          entitlements_file=None )
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
@@ -41,4 +41,4 @@ coll = COLLECT(exe,
                strip=False,
                upx=True,
                upx_exclude=[],
-               name='graph')
+               name='graphCmd')
