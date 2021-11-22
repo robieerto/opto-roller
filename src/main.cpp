@@ -69,6 +69,7 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 //IPAddress server(74,125,232,128);  // numeric IP for Google (no DNS)
 String server;    // name address for Google (using DNS)
 int server_ip[4];
+int gateway_ip[4];
 int klient_ip[4];
 int port = 8080;
 
@@ -108,7 +109,7 @@ uint8_t dataRS422_1;
 uint16_t pocet_sprav1;
 double data1R;
 
-const int serial_size = 15;
+const int serial_size = 20;
 double serial_read[serial_size];
 double pamat_serial_read[serial_size];
 uint16_t data1;
@@ -306,6 +307,8 @@ void parseValues(char val) {
         else if (actText == "vNuluj") {
           zero_imp_distance = dist_imp_sensor;
         }
+
+        /************** server IP **************/
         else if (actText == "vethernet1") {
           server_ip[0] = value;
           serial_read[5] = server_ip[0];
@@ -326,10 +329,13 @@ void parseValues(char val) {
           serial_read[8] = server_ip[3];
           change_ip = true;
         }
+        /************** port **************/
         else if (actText == "vethernet5") {
           port = value;
           serial_read[9] = port;
         }
+
+        /************** klient IP **************/
         else if (actText == "vethernet6") {
           klient_ip[0] = value;
           serial_read[10] = klient_ip[0];
@@ -346,6 +352,25 @@ void parseValues(char val) {
           klient_ip[3] = value;
           serial_read[13] = klient_ip[3];
         }
+
+        /************** gateway IP **************/
+        else if (actText == "vethernet10") {
+          gateway_ip[0] = value;
+          serial_read[14] = gateway_ip[0];
+        }
+        else if (actText == "vethernet11") {
+          gateway_ip[1] = value;
+          serial_read[15] = gateway_ip[1];
+        }
+        else if (actText == "vethernet12") {
+          gateway_ip[2] = value;
+          serial_read[16] = gateway_ip[2];
+        }
+        else if (actText == "vethernet13") {
+          gateway_ip[3] = value;
+          serial_read[17] = gateway_ip[3];
+        }
+
 
         if (change_ip) {
           server = String(server_ip[0]) + "." + String(server_ip[1])
@@ -455,12 +480,17 @@ void setup(void)
   klient_ip[1] = serial_read[11];
   klient_ip[2] = serial_read[12];
   klient_ip[3] = serial_read[13];
+  gateway_ip[0] = serial_read[14];
+  gateway_ip[1] = serial_read[15];
+  gateway_ip[2] = serial_read[16];
+  gateway_ip[3] = serial_read[17];
 
   delay(100);
   Ethernet.init(ETH_CS);
   // Set the static IP address
   IPAddress ip(klient_ip[0], klient_ip[1], klient_ip[2], klient_ip[3]);
-  Ethernet.begin(mac, ip);
+  IPAddress gateway(gateway_ip[0], gateway_ip[1], gateway_ip[2], gateway_ip[3]);
+  Ethernet.begin(mac, ip, gateway, gateway);
   delay(1000);
   // senzor vzdialenosti
   Serial.begin(115200, SERIAL_8N1); // RS422
@@ -484,6 +514,10 @@ void setup(void)
   posliTEXT("ethernet.t7.txt=", String(klient_ip[1]));
   posliTEXT("ethernet.t8.txt=", String(klient_ip[2]));
   posliTEXT("ethernet.t9.txt=", String(klient_ip[3]));
+  posliTEXT("ethernet.t10.txt=", String(gateway_ip[0]));
+  posliTEXT("ethernet.t11.txt=", String(gateway_ip[1]));
+  posliTEXT("ethernet.t12.txt=", String(gateway_ip[2]));
+  posliTEXT("ethernet.t13.txt=", String(gateway_ip[3]));
 
   //----------------   watch dog -------------------------------------
   // esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
