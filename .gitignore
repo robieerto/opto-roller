@@ -3,6 +3,7 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-graph/__pycache__
-graph/build
-graph/dist
+graphCmd/__pycache__
+graphCmd/build
+graphCmd/dist
+graphCmd/data

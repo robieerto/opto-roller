@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from matplotlib.ticker import FuncFormatter
@@ -33,4 +34,4 @@ plt.gcf().set_size_inches(18, 8)
 makedirs(graph_path, exist_ok=True)
 plt.subplots_adjust(left=0.055, bottom=0.055, right=0.945, top=0.945, wspace=0, hspace=0)
 plt.savefig(graph_path + '%s.png' % path.splitext(path.basename(sys.argv[1]))[0])
-print("Graph created")
+sys.stdout.write('OK')
